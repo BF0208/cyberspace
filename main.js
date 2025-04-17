@@ -32,37 +32,35 @@ function init() {
   scene.add(imageGroup);
 
   const loader = new THREE.TextureLoader();
+  const vShader = document.getElementById("vertexShader");
+  const fShader = document.getElementById("fragmentShader");
+
+  if (!vShader || !fShader) {
+    console.warn("Shader script tags not found in DOM.");
+  }
+
+  const vertexSource = vShader ? vShader.textContent : "";
+  const fragmentSource = fShader ? fShader.textContent : "";
+
   for (let i = 1; i <= 10; i++) {
     loader.load(`images/image${i}.jpg`, tex => {
-      const mat = new THREE.ShaderMaterial({
-        uniforms: {
-          time: { value: 0.0 },
-          tex: { value: tex }
-        },
-        vertexShader: document.getElementById("vertexShader").textContent,
-        fragmentShader: document.getElementById("fragmentShader").textContent,
-        transparent: true
-      });
+      const material = (vertexSource && fragmentSource)
+        ? new THREE.ShaderMaterial({
+            uniforms: {
+              time: { value: 0.0 },
+              tex: { value: tex }
+            },
+            vertexShader: vertexSource,
+            fragmentShader: fragmentSource,
+            transparent: true
+          })
+        : new THREE.MeshBasicMaterial({ map: tex, color: 0xff00ff });
 
       const geo = new THREE.PlaneGeometry(3, 2);
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(geo, material);
       mesh.position.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 20, -i * 10);
       imageGroup.add(mesh);
     });
-  }
-
-  const gridMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08 });
-  for (let x = -50; x <= 50; x += 5) {
-    for (let y = -50; y <= 50; y += 5) {
-      for (let z = -200; z <= 50; z += 5) {
-        const geo = new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(x, y, z),
-          new THREE.Vector3(x + 0.01, y + 0.01, z + 0.01)
-        ]);
-        const line = new THREE.Line(geo, gridMat);
-        scene.add(line);
-      }
-    }
   }
 
   window.addEventListener('resize', () => {
@@ -138,10 +136,10 @@ function animate() {
   hovered = intersects.length > 0 ? intersects[0].object : null;
 
   imageGroup.children.forEach(mesh => {
-    mesh.lookAt(camera.position);
-    if (mesh.material.uniforms.time) {
+    if (mesh.material.uniforms?.time) {
       mesh.material.uniforms.time.value = time;
     }
+    mesh.lookAt(camera.position);
     mesh.scale.set(1, 1, 1);
   });
 
