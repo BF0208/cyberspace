@@ -1,11 +1,14 @@
 
 import * as THREE from 'https://unpkg.com/three@0.154.0/build/three.module.js';
-import { OrbitControls } from 'https://cdn.skypack.dev/three@0.154.0/examples/jsm/controls/OrbitControls.js';
 import { gsap } from 'https://unpkg.com/gsap@3.12.5/index.js';
 
-let scene, camera, renderer, controls;
+let scene, camera, renderer;
 let scroll = 0;
 let images = [];
+let targetX = 0, targetY = 0;
+let currentX = 0, currentY = 0;
+let isDragging = false;
+let prevMouse = { x: 0, y: 0 };
 
 init();
 animate();
@@ -48,16 +51,25 @@ function init() {
     });
   }
 
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.rotateSpeed = 0.25;
-  controls.enableZoom = false;
-  controls.enablePan = false;
-
   window.addEventListener('resize', onWindowResize, false);
   window.addEventListener('wheel', (e) => {
     scroll += e.deltaY * 0.002;
+  });
+
+  renderer.domElement.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    prevMouse = { x: e.clientX, y: e.clientY };
+  });
+
+  window.addEventListener('mouseup', () => isDragging = false);
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - prevMouse.x;
+    const dy = e.clientY - prevMouse.y;
+    targetX -= dx * 0.01;
+    targetY += dy * 0.01;
+    prevMouse = { x: e.clientX, y: e.clientY };
   });
 }
 
@@ -69,13 +81,17 @@ function onWindowResize() {
 
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
 
+  // Easing camera toward target
+  currentX += (targetX - currentX) * 0.1;
+  currentY += (targetY - currentY) * 0.1;
+
+  camera.position.x = currentX;
+  camera.position.y = currentY;
   camera.position.z = scroll;
 
-  const time = Date.now() * 0.001;
-  camera.position.x += Math.sin(time * 0.2) * 0.0005;
-  camera.position.y += Math.cos(time * 0.2) * 0.0005;
+  const lookAtZ = scroll - 1;
+  camera.lookAt(new THREE.Vector3(currentX, currentY, lookAtZ));
 
   images.forEach(({ mesh, revealed }) => {
     if (!revealed && Math.abs(camera.position.z - mesh.position.z) < 10) {
