@@ -3,22 +3,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Cyberspace Dream Gallery v2 (No Audio)</title>
+  <title>Cyberspace Dream Gallery v3</title>
   <style>
-    body {
+    html, body {
       margin: 0;
-      overflow-y: scroll;
-      height: 5000px;
-      background-color: #e0e0e0;
+      padding: 0;
+      overflow: hidden;
+      background: #e0e0e0;
     }
     canvas {
       display: block;
-      opacity: 0;
-      transition: opacity 2s ease-in-out;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 0;
+    }
+    #overlay {
+      position: fixed;
+      width: 100vw;
+      height: 100vh;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 1;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.35) 100%);
+      animation: pulse 8s infinite alternate;
+    }
+    @keyframes pulse {
+      0% { opacity: 0.2; }
+      100% { opacity: 0.4; }
     }
   </style>
 </head>
 <body>
+  <div id="overlay"></div>
   <script src="three.min.js"></script>
   <script src="gsap.min.js"></script>
   <script src="main.js"></script>

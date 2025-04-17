@@ -1,61 +1,58 @@
 
 let scene, camera, renderer;
 let images = [];
-let scrollY = 0;
+let particles;
+let scroll = 0;
+
+const loader = new THREE.TextureLoader();
 
 init();
 animate();
 
 function init() {
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xe0e0e0, 5, 20);
+  scene.fog = new THREE.Fog(0xe0e0e0, 5, 40);
 
-  camera = new THREE.PerspectiveCamera(
-    75,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    1000
-  );
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.z = 0;
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  const loader = new THREE.TextureLoader();
-  const imagePaths = ['images/image1.jpg', 'images/image2.jpg', 'images/image3.jpg', 'images/image4.jpg', 'images/image5.jpg'];
+  // Load images
+  for (let i = 1; i <= 15; i++) {
+    loader.load(`images/image${i}.jpg`, (texture) => {
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0 });
+      const geometry = new THREE.PlaneGeometry(2.2, 1.5);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.x = (Math.random() - 0.5) * 12;
+      mesh.position.y = (Math.random() - 0.5) * 8;
+      mesh.position.z = -i * 4;
+      scene.add(mesh);
+      images.push({ mesh, revealed: false });
+    });
+  }
 
-  imagePaths.forEach((path, i) => {
-    loader.load(path,
-      (texture) => {
-        const geometry = new THREE.PlaneGeometry(1.5, 1);
-        const material = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 1
-        });
-        const plane = new THREE.Mesh(geometry, material);
-        plane.position.x = (Math.random() - 0.5) * 10;
-        plane.position.y = (Math.random() - 0.5) * 6;
-        plane.position.z = -i * 6 - 5;
-        scene.add(plane);
-        images.push({ mesh: plane, revealed: false });
-        console.log("Loaded image:", path);
-      },
-      undefined,
-      (err) => {
-        console.error("Error loading image:", path, err);
-      }
-    );
-  });
+  // Particle field
+  const particleCount = 1000;
+  const positions = [];
+  for (let i = 0; i < particleCount; i++) {
+    positions.push((Math.random() - 0.5) * 50);
+    positions.push((Math.random() - 0.5) * 50);
+    positions.push((Math.random() - 1.0) * 100);
+  }
 
-  setTimeout(() => {
-    renderer.domElement.style.opacity = 1;
-  }, 500);
+  const particleGeometry = new THREE.BufferGeometry();
+  particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+  const particleMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, opacity: 0.4, transparent: true });
+  particles = new THREE.Points(particleGeometry, particleMaterial);
+  scene.add(particles);
 
   window.addEventListener('resize', onWindowResize, false);
-  window.addEventListener('scroll', () => {
-    scrollY = window.scrollY;
+  window.addEventListener('wheel', (e) => {
+    scroll += e.deltaY * 0.002;
   });
 }
 
@@ -68,15 +65,17 @@ function onWindowResize() {
 function animate() {
   requestAnimationFrame(animate);
 
-  const scrollProgress = scrollY / 1000;
-  camera.position.z = scrollProgress * 10;
+  camera.position.z = scroll;
+  camera.position.x = Math.sin(Date.now() * 0.0003) * 0.5;
+  camera.position.y = Math.cos(Date.now() * 0.0002) * 0.3;
 
-  const time = Date.now() * 0.001;
-  camera.position.x += Math.sin(time * 0.3) * 0.0015;
-  camera.position.y += Math.cos(time * 0.2) * 0.0015;
-
-  images.forEach(({ mesh }) => {
-    mesh.position.y += Math.sin(time + mesh.position.x) * 0.0003;
+  // Reveal images when nearby
+  images.forEach(({ mesh, revealed }) => {
+    const distance = Math.abs(camera.position.z - mesh.position.z);
+    if (!revealed && distance < 10) {
+      gsap.to(mesh.material, { opacity: 1, duration: 2 });
+      mesh.revealed = true;
+    }
   });
 
   renderer.render(scene, camera);
