@@ -26,16 +26,27 @@ function init() {
   const imagePaths = ['images/image1.jpg', 'images/image2.jpg', 'images/image3.jpg', 'images/image4.jpg', 'images/image5.jpg'];
 
   imagePaths.forEach((path, i) => {
-    loader.load(path, (texture) => {
-      const geometry = new THREE.PlaneGeometry(1.5, 1);
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0 });
-      const plane = new THREE.Mesh(geometry, material);
-      plane.position.x = (Math.random() - 0.5) * 10;
-      plane.position.y = (Math.random() - 0.5) * 6;
-      plane.position.z = -i * 6 - 5;
-      scene.add(plane);
-      images.push({ mesh: plane, revealed: false });
-    });
+    loader.load(path,
+      (texture) => {
+        const geometry = new THREE.PlaneGeometry(1.5, 1);
+        const material = new THREE.MeshBasicMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 1
+        });
+        const plane = new THREE.Mesh(geometry, material);
+        plane.position.x = (Math.random() - 0.5) * 10;
+        plane.position.y = (Math.random() - 0.5) * 6;
+        plane.position.z = -i * 6 - 5;
+        scene.add(plane);
+        images.push({ mesh: plane, revealed: false });
+        console.log("Loaded image:", path);
+      },
+      undefined,
+      (err) => {
+        console.error("Error loading image:", path, err);
+      }
+    );
   });
 
   setTimeout(() => {
@@ -64,16 +75,8 @@ function animate() {
   camera.position.x += Math.sin(time * 0.3) * 0.0015;
   camera.position.y += Math.cos(time * 0.2) * 0.0015;
 
-  images.forEach(({ mesh, revealed }) => {
-    // Gentle floating motion
+  images.forEach(({ mesh }) => {
     mesh.position.y += Math.sin(time + mesh.position.x) * 0.0003;
-
-    // Fade in when near camera
-    const distance = camera.position.z - mesh.position.z;
-    if (!revealed && distance > -2 && distance < 8) {
-      gsap.to(mesh.material, { opacity: 1, duration: 2 });
-      mesh.revealed = true;
-    }
   });
 
   renderer.render(scene, camera);
