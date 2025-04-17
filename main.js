@@ -1,151 +1,151 @@
 
-import * as THREE from 'https://cdn.skypack.dev/three@0.154.0';
-import { GLTFLoader } from 'https://cdn.skypack.dev/three/examples/jsm/loaders/GLTFLoader.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.module.js';
 
-let camera, scene, renderer;
-let clock = new THREE.Clock();
-let images = [];
-let raycaster = new THREE.Raycaster();
-let mouse = new THREE.Vector2();
-let INTERSECTED = null;
-let scrollZ = 0;
-let targetZ = 0;
-let dragging = false;
+let scene, camera, renderer, clock;
+let imageGroup = new THREE.Group();
+let scroll = 0, targetScroll = 0;
+let targetX = 0, targetY = 0;
+let currentX = 0, currentY = 0;
+let isDragging = false;
 let dragStart = { x: 0, y: 0 };
-let cameraTarget = new THREE.Vector3();
-let glowGrid;
-const loader = new THREE.TextureLoader();
+let mouse = new THREE.Vector2();
+let raycaster = new THREE.Raycaster();
+let hovered = null, zoomed = null;
 
 init();
 animate();
 
 function init() {
+  clock = new THREE.Clock();
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xc4c4c4, 10, 100);
+  scene.fog = new THREE.FogExp2(0xc4c4c4, 0.05);
 
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 500);
   camera.position.z = 0;
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // Light
-  const light = new THREE.AmbientLight(0xffffff, 1);
-  scene.add(light);
+  scene.add(imageGroup);
 
-  // Volumetric grid
-  const gridMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, opacity: 0.1, transparent: true });
-  const gridGroup = new THREE.Group();
-
-  for (let x = -50; x <= 50; x += 5) {
-    for (let y = -50; y <= 50; y += 5) {
-      const geometry = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(x, y, -50),
-        new THREE.Vector3(x, y, 50)
-      ]);
-      const line = new THREE.Line(geometry, gridMaterial);
-      gridGroup.add(line);
-    }
-  }
-  scene.add(gridGroup);
-
-  // Load placeholder images
+  const loader = new THREE.TextureLoader();
   for (let i = 1; i <= 10; i++) {
-    loader.load(`images/image${i}.jpg`, texture => {
-      const geometry = new THREE.PlaneGeometry(3, 2);
-      const material = new THREE.ShaderMaterial({
+    loader.load(`images/image${i}.jpg`, tex => {
+      const mat = new THREE.ShaderMaterial({
         uniforms: {
-          time: { value: 0 },
-          tex: { value: texture }
+          time: { value: 0.0 },
+          tex: { value: tex }
         },
-        vertexShader: document.getElementById('vertexShader').textContent,
-        fragmentShader: document.getElementById('fragmentShader').textContent,
+        vertexShader: document.getElementById("vertexShader").textContent,
+        fragmentShader: document.getElementById("fragmentShader").textContent,
         transparent: true
       });
 
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set((Math.random() - 0.5) * 40, (Math.random() - 0.5) * 30, Math.random() * -100);
-      mesh.userData.originalPosition = mesh.position.clone();
-      images.push(mesh);
-      scene.add(mesh);
+      const geo = new THREE.PlaneGeometry(3, 2);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 20, -i * 10);
+      imageGroup.add(mesh);
     });
   }
 
-  window.addEventListener('resize', onWindowResize);
-  document.addEventListener('wheel', onScroll);
-  document.addEventListener('pointerdown', onPointerDown);
-  document.addEventListener('pointermove', onPointerMove);
-  document.addEventListener('pointerup', () => dragging = false);
-  document.addEventListener('click', onClick);
-}
-
-function onWindowResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-function onScroll(event) {
-  targetZ += event.deltaY * 0.05;
-}
-
-function onPointerDown(event) {
-  dragging = true;
-  dragStart.x = event.clientX;
-  dragStart.y = event.clientY;
-}
-
-function onPointerMove(event) {
-  if (dragging) {
-    camera.position.x += (event.clientX - dragStart.x) * 0.01;
-    camera.position.y -= (event.clientY - dragStart.y) * 0.01;
-    dragStart.x = event.clientX;
-    dragStart.y = event.clientY;
+  const gridMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08 });
+  for (let x = -50; x <= 50; x += 5) {
+    for (let y = -50; y <= 50; y += 5) {
+      for (let z = -200; z <= 50; z += 5) {
+        const geo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, y, z),
+          new THREE.Vector3(x + 0.01, y + 0.01, z + 0.01)
+        ]);
+        const line = new THREE.Line(geo, gridMat);
+        scene.add(line);
+      }
+    }
   }
 
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
-}
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
 
-function onClick() {
-  if (INTERSECTED) {
-    cameraTarget.copy(INTERSECTED.position);
-  }
+  window.addEventListener('wheel', e => {
+    if (!zoomed) targetScroll += e.deltaY * 0.05;
+  });
+
+  window.addEventListener('pointerdown', e => {
+    isDragging = true;
+    dragStart.x = e.clientX;
+    dragStart.y = e.clientY;
+  });
+
+  window.addEventListener('pointerup', () => {
+    isDragging = false;
+  });
+
+  window.addEventListener('pointermove', e => {
+    if (isDragging && !zoomed) {
+      targetX -= (e.clientX - dragStart.x) * 0.01;
+      targetY += (e.clientY - dragStart.y) * 0.01;
+      dragStart.x = e.clientX;
+      dragStart.y = e.clientY;
+    }
+
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  });
+
+  window.addEventListener('click', () => {
+    if (hovered && !zoomed) {
+      gsap.to(camera.position, {
+        x: hovered.position.x,
+        y: hovered.position.y,
+        z: hovered.position.z + 4,
+        duration: 1.2,
+        ease: "power2.inOut"
+      });
+      zoomed = hovered;
+    } else if (zoomed) {
+      zoomed = null;
+      gsap.to(camera.position, {
+        x: currentX,
+        y: currentY,
+        z: scroll,
+        duration: 1.2,
+        ease: "power2.inOut"
+      });
+    }
+  });
 }
 
 function animate() {
   requestAnimationFrame(animate);
-  const delta = clock.getDelta();
-  const elapsed = clock.getElapsedTime();
+  const time = clock.getElapsedTime();
 
-  // Animate shader
-  images.forEach(img => {
-    if (img.material.uniforms.time) {
-      img.material.uniforms.time.value = elapsed;
-    }
-    // Always look at camera
-    img.lookAt(camera.position);
-  });
+  currentX += (targetX - currentX) * 0.1;
+  currentY += (targetY - currentY) * 0.1;
+  scroll += (targetScroll - scroll) * 0.1;
 
-  // Raycast hover
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObjects(images);
-  INTERSECTED = intersects.length > 0 ? intersects[0].object : null;
-
-  if (INTERSECTED) {
-    INTERSECTED.scale.set(1.05, 1.05, 1.05);
+  if (!zoomed) {
+    camera.position.set(currentX, currentY, scroll);
+    camera.lookAt(currentX, currentY, scroll - 1);
   }
-  images.forEach(obj => {
-    if (obj !== INTERSECTED) obj.scale.set(1, 1, 1);
+
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(imageGroup.children);
+  hovered = intersects.length > 0 ? intersects[0].object : null;
+
+  imageGroup.children.forEach(mesh => {
+    mesh.lookAt(camera.position);
+    if (mesh.material.uniforms.time) {
+      mesh.material.uniforms.time.value = time;
+    }
+    mesh.scale.set(1, 1, 1);
   });
 
-  // Smooth scroll
-  scrollZ += (targetZ - scrollZ) * 0.05;
-  camera.position.z = scrollZ;
-
-  // Smooth camera target move
-  camera.position.lerp(cameraTarget, 0.05);
+  if (hovered) {
+    hovered.scale.set(1.05, 1.05, 1.05);
+  }
 
   renderer.render(scene, camera);
 }
