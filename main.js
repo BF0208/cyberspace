@@ -2,7 +2,7 @@
 import * as THREE from 'https://unpkg.com/three@0.154.0/build/three.module.js';
 import { gsap } from 'https://unpkg.com/gsap@3.12.5/index.js';
 
-let scene, camera, renderer, clock;
+let scene, camera, renderer;
 let scroll = 0;
 let images = [];
 let isZoomed = false;
@@ -27,46 +27,15 @@ function init() {
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  clock = new THREE.Clock();
-
-  const gridMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.15 });
-  const gridSize = 100;
-  const divisions = 20;
-  const spacing = gridSize / divisions;
-
-  for (let axis = 0; axis < 3; axis++) {
-    for (let i = -divisions / 2; i <= divisions / 2; i++) {
-      const points = [];
-      const offset = i * spacing;
-      const p1 = new THREE.Vector3();
-      const p2 = new THREE.Vector3();
-
-      if (axis === 0) { p1.set(offset, -gridSize/2, 0); p2.set(offset, gridSize/2, 0); }
-      if (axis === 1) { p1.set(-gridSize/2, offset, 0); p2.set(gridSize/2, offset, 0); }
-      if (axis === 2) { p1.set(0, offset, -gridSize/2); p2.set(0, offset, gridSize/2); }
-
-      const geometry = new THREE.BufferGeometry().setFromPoints([p1, p2]);
-      const line = new THREE.Line(geometry, gridMaterial);
-      scene.add(line);
-    }
-  }
-
   imageGroup = new THREE.Group();
   scene.add(imageGroup);
 
   const loader = new THREE.TextureLoader();
   for (let i = 1; i <= 10; i++) {
     loader.load(`images/image${i}.jpg`, (texture) => {
-      const material = new THREE.ShaderMaterial({
-        uniforms: {
-          time: { value: 0.0 },
-          texture: { value: texture }
-        },
-        vertexShader: document.getElementById('vertexShader').textContent,
-        fragmentShader: document.getElementById('fragmentShader').textContent,
-        transparent: true
-      });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.5), material);
+      // Use MeshBasicMaterial for testing
+      const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.5), mat);
       mesh.position.set((Math.random() - 0.5) * 6, (Math.random() - 0.5) * 4, -i * 8);
       imageGroup.add(mesh);
       images.push(mesh);
@@ -141,14 +110,6 @@ function onClick(event) {
 function animate() {
   requestAnimationFrame(animate);
 
-  const time = clock.getElapsedTime();
-  images.forEach(mesh => {
-    if (mesh.material.uniforms) {
-      mesh.material.uniforms.time.value = time;
-    }
-    mesh.lookAt(camera.position);
-  });
-
   currentX += (targetX - currentX) * 0.1;
   currentY += (targetY - currentY) * 0.1;
 
@@ -158,6 +119,10 @@ function animate() {
 
   const lookZ = scrollLocked ? camera.position.z - 1 : scroll - 1;
   camera.lookAt(new THREE.Vector3(currentX, currentY, lookZ));
+
+  imageGroup.children.forEach(mesh => {
+    mesh.lookAt(camera.position);
+  });
 
   renderer.render(scene, camera);
 }
