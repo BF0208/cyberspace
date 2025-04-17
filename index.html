@@ -30,6 +30,23 @@
 </head>
 <body>
   <div id="vignette"></div>
+  <script id="vertexShader" type="x-shader/x-vertex">
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    varying vec2 vUv;
+    uniform float time;
+    uniform sampler2D texture;
+    void main() {
+      float scan = smoothstep(0.0, 1.0, vUv.y + sin(time) * 0.01);
+      vec4 texColor = texture2D(texture, vUv);
+      gl_FragColor = vec4(texColor.rgb, texColor.a * scan);
+    }
+  </script>
   <script type="module" src="main.js"></script>
 </body>
 </html>
