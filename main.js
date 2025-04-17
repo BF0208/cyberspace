@@ -12,8 +12,10 @@ let mouse = new THREE.Vector2();
 let raycaster = new THREE.Raycaster();
 let hovered = null, zoomed = null;
 
-init();
-animate();
+window.addEventListener('DOMContentLoaded', () => {
+  init();
+  animate();
+});
 
 function init() {
   clock = new THREE.Clock();
