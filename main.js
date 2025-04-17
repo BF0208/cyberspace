@@ -1,57 +1,60 @@
-
-let scene, camera, renderer;
-let images = [];
-let particles;
+let scene, camera, renderer, controls;
 let scroll = 0;
-
-const loader = new THREE.TextureLoader();
+let images = [];
 
 init();
 animate();
 
 function init() {
   scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xe0e0e0, 5, 40);
+  scene.fog = new THREE.FogExp2(0xe0e0e0, 0.05);
 
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.z = 0;
 
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // Load images
+  const size = 100;
+  const divisions = 50;
+  const gridHelper = new THREE.GridHelper(size, divisions, 0xffffff, 0xffffff);
+  gridHelper.material.opacity = 0.15;
+  gridHelper.material.transparent = true;
+  scene.add(gridHelper);
+
+  const particleCount = 1200;
+  const particles = new THREE.BufferGeometry();
+  const positions = new Float32Array(particleCount * 3);
+  for (let i = 0; i < particleCount * 3; i++) {
+    positions[i] = (Math.random() - 0.5) * 100;
+  }
+  particles.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  const particleMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true, opacity: 0.3 });
+  const pointCloud = new THREE.Points(particles, particleMat);
+  scene.add(pointCloud);
+
+  const loader = new THREE.TextureLoader();
   for (let i = 1; i <= 15; i++) {
     loader.load(`images/image${i}.jpg`, (texture) => {
-      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0 });
-      const geometry = new THREE.PlaneGeometry(2.2, 1.5);
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.x = (Math.random() - 0.5) * 12;
-      mesh.position.y = (Math.random() - 0.5) * 8;
-      mesh.position.z = -i * 4;
+      const geom = new THREE.PlaneGeometry(2.2, 1.5);
+      const mat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: 0 });
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.set((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 6, -i * 5);
       scene.add(mesh);
       images.push({ mesh, revealed: false });
     });
   }
 
-  // Particle field
-  const particleCount = 1000;
-  const positions = [];
-  for (let i = 0; i < particleCount; i++) {
-    positions.push((Math.random() - 0.5) * 50);
-    positions.push((Math.random() - 0.5) * 50);
-    positions.push((Math.random() - 1.0) * 100);
-  }
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.04;
+  controls.rotateSpeed = 0.25;
+  controls.enableZoom = false;
+  controls.enablePan = false;
 
-  const particleGeometry = new THREE.BufferGeometry();
-  particleGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-
-  const particleMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, opacity: 0.4, transparent: true });
-  particles = new THREE.Points(particleGeometry, particleMaterial);
-  scene.add(particles);
-
-  window.addEventListener('resize', onWindowResize, false);
-  window.addEventListener('wheel', (e) => {
+  window.addEventListener("resize", onWindowResize, false);
+  window.addEventListener("wheel", (e) => {
     scroll += e.deltaY * 0.002;
   });
 }
@@ -64,16 +67,15 @@ function onWindowResize() {
 
 function animate() {
   requestAnimationFrame(animate);
-
+  controls.update();
   camera.position.z = scroll;
-  camera.position.x = Math.sin(Date.now() * 0.0003) * 0.5;
-  camera.position.y = Math.cos(Date.now() * 0.0002) * 0.3;
+  const time = Date.now() * 0.001;
+  camera.position.x += Math.sin(time * 0.2) * 0.0005;
+  camera.position.y += Math.cos(time * 0.2) * 0.0005;
 
-  // Reveal images when nearby
   images.forEach(({ mesh, revealed }) => {
-    const distance = Math.abs(camera.position.z - mesh.position.z);
-    if (!revealed && distance < 10) {
-      gsap.to(mesh.material, { opacity: 1, duration: 2 });
+    if (!revealed && Math.abs(camera.position.z - mesh.position.z) < 10) {
+      mesh.material.opacity = 1;
       mesh.revealed = true;
     }
   });

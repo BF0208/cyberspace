@@ -3,13 +3,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Cyberspace Dream Gallery v3</title>
+  <title>Cyberspace Gallery v4</title>
   <style>
     html, body {
       margin: 0;
-      padding: 0;
       overflow: hidden;
-      background: #e0e0e0;
+      background-color: #e0e0e0;
     }
     canvas {
       display: block;
@@ -18,25 +17,25 @@
       left: 0;
       z-index: 0;
     }
-    #overlay {
+    #vignette {
       position: fixed;
+      pointer-events: none;
       width: 100vw;
       height: 100vh;
       top: 0;
       left: 0;
-      pointer-events: none;
-      z-index: 1;
       background: radial-gradient(ellipse at center, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.35) 100%);
-      animation: pulse 8s infinite alternate;
+      animation: pulse 8s ease-in-out infinite alternate;
+      z-index: 1;
     }
     @keyframes pulse {
-      0% { opacity: 0.2; }
-      100% { opacity: 0.4; }
+      from { opacity: 0.2; }
+      to { opacity: 0.4; }
     }
   </style>
 </head>
 <body>
-  <div id="overlay"></div>
+  <div id="vignette"></div>
   <script src="three.min.js"></script>
   <script src="gsap.min.js"></script>
   <script src="main.js"></script>
